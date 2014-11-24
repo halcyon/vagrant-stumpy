@@ -26,5 +26,7 @@
     apt: name=xdm
   - name: install lxc-docker
     apt: name=lxc-docker
+  - name: install git-core
+    apt: name=git-core
   - name: apt clean
     shell: apt-get clean
