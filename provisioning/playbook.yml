@@ -1,5 +1,30 @@
---
-- hosts: all
+---
+- hosts: default
   tasks:
-    - name: install virtualbox-guest-x11
-      apt: pkg=virtualbox-guest-x11
+  - name: set hostname
+    hostname: name=stumpy
+  - name: add stumpy to /etc/hosts
+    lineinfile: dest=/etc/hosts regexp=vagrant line='127.0.1.1       vagrant.vm      stumpy'
+
+  - name: add wheezy-backports repository
+    apt_repository: repo='deb http://http.debian.net/debian wheezy-backports main'
+  - name: upgrade kernel to >=3.8 for docker from wheezy-backports
+    apt: name=linux-image-amd64 state=latest default_release=wheezy-backports
+  - name: install apt-transport-https
+    apt: name=apt-transport-https
+
+  - name: add docker repository key
+    shell: apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+  - name: add lxc-docker repository
+    apt_repository: repo='deb https://get.docker.com/ubuntu docker main'
+
+  - name: install virtualbox-guest-x11
+    apt: name=virtualbox-guest-x11
+  - name: install xserver-xorg
+    apt: name=xserver-xorg
+  - name: install xdm
+    apt: name=xdm
+  - name: install lxc-docker
+    apt: name=lxc-docker
+  - name: apt clean
+    shell: apt-get clean
