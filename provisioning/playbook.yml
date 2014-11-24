@@ -1,0 +1,5 @@
+--
+- hosts: all
+  tasks:
+    - name: install virtualbox-guest-x11
+      apt: pkg=virtualbox-guest-x11
