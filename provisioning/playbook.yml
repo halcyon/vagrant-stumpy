@@ -1,10 +1,14 @@
 ---
 - hosts: default
+  sudo: yes
   tasks:
   - name: set hostname
     hostname: name=stumpy
   - name: add stumpy to /etc/hosts
     lineinfile: dest=/etc/hosts regexp=vagrant line='127.0.1.1       vagrant.vm      stumpy'
+
+  - name: set sudoers privilege to not need a password
+    lineinfile: 'dest=/etc/sudoers regexp=%sudo line="%sudo   ALL=(ALL:ALL) NOPASSWD: ALL"'
 
   - name: add wheezy-backports repository
     apt_repository: repo='deb http://http.debian.net/debian wheezy-backports main'
@@ -14,7 +18,7 @@
     apt: name=apt-transport-https
 
   - name: add docker repository key
-    shell: apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+    shell: creates=/etc/apt/sources.list.d/get_docker_com_ubuntu.list apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
   - name: add lxc-docker repository
     apt_repository: repo='deb https://get.docker.com/ubuntu docker main'
 
@@ -26,7 +30,39 @@
     apt: name=xdm
   - name: install lxc-docker
     apt: name=lxc-docker
+  - name: install autoconf
+    apt: name=autoconf
   - name: install git-core
     apt: name=git-core
   - name: apt clean
     shell: apt-get clean
+
+  - name: download sbcl binary
+    get_url: url=http://iweb.dl.sourceforge.net/project/sbcl/sbcl/1.2.5/sbcl-1.2.5-x86-64-linux-binary.tar.bz2 dest=/tmp/sbcl-1.2.5-x86-64-linux-binary.tar.bz2
+  - name: unarchive sbcl binary
+    unarchive: src=/tmp/sbcl-1.2.5-x86-64-linux-binary.tar.bz2 dest=/tmp copy=no creates=/usr/local/bin/sbcl
+  - name: install sbcl binary
+    shell: chdir=/tmp/sbcl-1.2.5-x86-64-linux creates=/usr/local/bin/sbcl sh install.sh
+
+  - name: Create user smcleod
+    user: name=smcleod groups=docker,audio password="$6$lSIY4ZaVoDe$FGOOwpUzd7qkjPVJ9Muk1xoI19DhU34FB9GYtDpu.mN2.iQe4lYHN6V8B9bsH37ZIIn2qnrNIwabC85YiasIw0"
+
+  - name: Download quicklisp dependency manager
+    get_url: url=http://beta.quicklisp.org/quicklisp.lisp dest=/tmp/quicklisp.lisp
+    sudo_user: smcleod
+  - name: Install quicklisp dependency manager and install stumpwm dependencies
+    shell: creates=/home/smcleod/quicklisp yes | echo '(load "/tmp/quicklisp.lisp")(quicklisp-quickstart:install)(ql:quickload "clx")(ql:quickload "cl-ppcre")(ql:add-to-init-file)(quit)' | sbcl --script
+    sudo_user: smcleod
+
+  - name: Download stumpwm source
+    git: repo=https://github.com/stumpwm/stumpwm.git
+         dest=/home/smcleod/stumpwm
+    sudo_user: smcleod
+
+  - name: Compile stumpwm source
+    shell: chdir=/home/smcleod/stumpwm autoconf && ./configure && make && make install-modules
+    register: ps
+    sudo_user: smcleod
+
+
+  - debug: var=ps.stdout_lines
