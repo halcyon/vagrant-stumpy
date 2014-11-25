@@ -10,10 +10,15 @@
   - name: set sudoers privilege to not need a password
     lineinfile: 'dest=/etc/sudoers regexp=%sudo line="%sudo   ALL=(ALL:ALL) NOPASSWD: ALL"'
 
-  - name: add wheezy-backports repository
-    apt_repository: repo='deb http://http.debian.net/debian wheezy-backports main'
-  - name: upgrade kernel to >=3.8 for docker from wheezy-backports
-    apt: name=linux-image-amd64 state=latest default_release=wheezy-backports
+#  - name: add wheezy-backports repository
+#    apt_repository: repo='deb http://http.debian.net/debian wheezy-backports main'
+#  - name: add wheezy-backports src repository
+#    apt_repository: repo='deb-src http://http.debian.net/debian wheezy-backports main'
+#  - name: upgrade kernel to >=3.8 for docker from wheezy-backports
+#    apt: name=linux-image-amd64 state=latest default_release=wheezy-backports
+
+  - name: update apt cache if it not updated within the past hour
+    apt: update_cache=yes cache_valid_time=3600
   - name: install apt-transport-https
     apt: name=apt-transport-https
 
@@ -40,10 +45,9 @@
   - name: download sbcl binary
     get_url: url=http://iweb.dl.sourceforge.net/project/sbcl/sbcl/1.2.5/sbcl-1.2.5-x86-64-linux-binary.tar.bz2 dest=/tmp/sbcl-1.2.5-x86-64-linux-binary.tar.bz2
   - name: unarchive sbcl binary
-    unarchive: src=/tmp/sbcl-1.2.5-x86-64-linux-binary.tar.bz2 dest=/tmp copy=no creates=/usr/local/bin/sbcl
+    unarchive: creates=/usr/local/bin/sbcl src=/tmp/sbcl-1.2.5-x86-64-linux-binary.tar.bz2 dest=/tmp copy=no
   - name: install sbcl binary
-    shell: chdir=/tmp/sbcl-1.2.5-x86-64-linux creates=/usr/local/bin/sbcl sh install.sh
-
+    shell: creates=/usr/local/bin/sbcl cd /tmp/sbcl-1.2.5-x86-64-linux && sh /tmp/sbcl-1.2.5-x86-64-linux/install.sh
   - name: Create user smcleod
     user: name=smcleod groups=docker,audio password="$6$lSIY4ZaVoDe$FGOOwpUzd7qkjPVJ9Muk1xoI19DhU34FB9GYtDpu.mN2.iQe4lYHN6V8B9bsH37ZIIn2qnrNIwabC85YiasIw0"
 
@@ -51,8 +55,13 @@
     get_url: url=http://beta.quicklisp.org/quicklisp.lisp dest=/tmp/quicklisp.lisp
     sudo_user: smcleod
   - name: Install quicklisp dependency manager and install stumpwm dependencies
-    shell: creates=/home/smcleod/quicklisp yes | echo '(load "/tmp/quicklisp.lisp")(quicklisp-quickstart:install)(ql:quickload "clx")(ql:quickload "cl-ppcre")(ql:add-to-init-file)(quit)' | sbcl --script
+    shell: creates=/home/smcleod/quicklisp echo '(load "/tmp/quicklisp.lisp")(quicklisp-quickstart:install)(ql:quickload "clx")(ql:quickload "cl-ppcre")(quit)' | sbcl --script
     sudo_user: smcleod
+  - name: Add quicklisp init to sbclrc
+    copy: dest=/home/smcleod/.sbclrc content='(let ((quicklisp-init (merge-pathnames "quicklisp/setup.lisp"
+                                                                    (user-homedir-pathname))))
+                                                   (when (probe-file quicklisp-init)
+                                                         (load quicklisp-init)))'
 
   - name: Download stumpwm source
     git: repo=https://github.com/stumpwm/stumpwm.git
@@ -60,9 +69,14 @@
     sudo_user: smcleod
 
   - name: Compile stumpwm source
-    shell: chdir=/home/smcleod/stumpwm autoconf && ./configure && make && make install-modules
-    register: ps
+    shell: creates=/home/smcleod/.stumpwm.d/modules chdir=/home/smcleod/stumpwm autoconf && ./configure && make && make install-modules
     sudo_user: smcleod
 
+  - name: Install stumpwm
+    shell: creates=/usr/local/bin/stumpwm chdir=/home/smcleod/stumpwm make install
 
-  - debug: var=ps.stdout_lines
+  - name: Set stumpwm to be the default window manager
+    shell: update-alternatives --install /usr/bin/x-window-manager x-window-manager /usr/local/bin/stumpwm 100
+
+#    register: ps
+#  - debug: var=ps.stdout_lines
