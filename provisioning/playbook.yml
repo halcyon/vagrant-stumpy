@@ -17,7 +17,7 @@
 #  - name: upgrade kernel to >=3.8 for docker from wheezy-backports
 #    apt: name=linux-image-amd64 state=latest default_release=wheezy-backports
 
-  - name: update apt cache if it not updated within the past hour
+  - name: update apt cache if not updated within past hour
     apt: update_cache=yes cache_valid_time=3600
   - name: install apt-transport-https
     apt: name=apt-transport-https
@@ -33,6 +33,14 @@
     apt: name=xserver-xorg
   - name: install xdm
     apt: name=xdm
+  - name: install gnome-terminal
+    apt: name=gnome-terminal
+  - name: install tmux
+    apt: name=tmux
+  - name: install zsh
+    apt: name=zsh
+  - name: install autojump
+    apt: name=autojump
   - name: install lxc-docker
     apt: name=lxc-docker
   - name: install autoconf
@@ -49,7 +57,15 @@
   - name: install sbcl binary
     shell: creates=/usr/local/bin/sbcl cd /tmp/sbcl-1.2.5-x86-64-linux && sh /tmp/sbcl-1.2.5-x86-64-linux/install.sh
   - name: Create user smcleod
-    user: name=smcleod groups=docker,audio password="$6$lSIY4ZaVoDe$FGOOwpUzd7qkjPVJ9Muk1xoI19DhU34FB9GYtDpu.mN2.iQe4lYHN6V8B9bsH37ZIIn2qnrNIwabC85YiasIw0"
+    user: name=smcleod shell=/usr/bin/zsh groups=docker,audio password="$6$lSIY4ZaVoDe$FGOOwpUzd7qkjPVJ9Muk1xoI19DhU34FB9GYtDpu.mN2.iQe4lYHN6V8B9bsH37ZIIn2qnrNIwabC85YiasIw0"
+
+  - name: Download gnome-terminal color scheme
+    git: repo=https://github.com/Anthony25/gnome-terminal-colors-solarized.git
+    sudo_user: smcleod
+
+  - name: Install gnome-terminal color scheme
+    shell: chdir=/home/smcleod/gnome-terminal-colors-solarized ./install.sh -s light -p Default
+    sudo_user: smcleod
 
   - name: Download quicklisp dependency manager
     get_url: url=http://beta.quicklisp.org/quicklisp.lisp dest=/tmp/quicklisp.lisp
@@ -65,7 +81,7 @@
 
   - name: Download stumpwm source
     git: repo=https://github.com/stumpwm/stumpwm.git
-         dest=/home/smcleod/stumpwm
+         dest=/home/smcleod/stumpwm update=no
     sudo_user: smcleod
 
   - name: Compile stumpwm source
@@ -74,6 +90,7 @@
 
   - name: Copy .stumpwmrc
     copy: src=.stumpwmrc dest=/home/smcleod/.stumpwmrc
+    sudo_user: smcleod
 
   - name: Install stumpwm
     shell: creates=/usr/local/bin/stumpwm chdir=/home/smcleod/stumpwm make install
@@ -83,12 +100,51 @@
 
   - name: Download docker-smcleod-base
     git: repo=https://github.com/halcyon/docker-smcleod-base.git
-         dest=/home/smcleod/docker-smcleod-base
+         dest=/home/smcleod/docker-smcleod-base update=no
     sudo_user: smcleod
-
   - name: Build docker-smcleod-base
     shell: chdir=/home/smcleod/docker-smcleod-base docker build -t smcleod/base .
     sudo_user: smcleod
 
+  - name: Download docker-smcleod-x
+    git: repo=https://github.com/halcyon/docker-smcleod-x.git
+         dest=/home/smcleod/docker-smcleod-x update=no
+    sudo_user: smcleod
+  - name: Build docker-smcleod-x
+    shell: chdir=/home/smcleod/docker-smcleod-x docker build -t smcleod/x .
+    sudo_user: smcleod
+
+  - name: Download docker-smcleod-emacs
+    git: repo=https://github.com/halcyon/docker-smcleod-emacs.git
+         dest=/home/smcleod/docker-smcleod-emacs update=no
+    sudo_user: smcleod
+  - name: Build docker-smcleod-emacs
+    shell: chdir=/home/smcleod/docker-smcleod-emacs docker build -t smcleod/emacs .
+    sudo_user: smcleod
+
+#  - name: Download docker-smcleod-gnome-terminal
+#    git: repo=https://github.com/halcyon/docker-smcleod-gnome-terminal.git
+#         dest=/home/smcleod/docker-smcleod-gnome-terminal update=no
+#    sudo_user: smcleod
+#  - name: Build docker-smcleod-gnome-terminal
+#    shell: chdir=/home/smcleod/docker-smcleod-gnome-terminal docker build -t smcleod/gnome-terminal .
+#    sudo_user: smcleod
+
+  - name: Download docker-smcleod-chrome
+    git: repo=https://github.com/halcyon/docker-smcleod-chrome.git
+         dest=/home/smcleod/docker-smcleod-chrome update=no
+    sudo_user: smcleod
+  - name: Build docker-smcleod-chrome
+    shell: chdir=/home/smcleod/docker-smcleod-chrome docker build -t smcleod/chrome .
+    sudo_user: smcleod
+
+  - name: Copy smcleod-data
+    copy: src=smcleod-data.tar.bz2 dest=/home/smcleod/smcleod-data.tar.bz2
+
+  - name: Create volume smcleod-data
+    shell: docker ps -a | grep smcleod-data || docker run -v /root --name smcleod-data busybox true
+
+  - name: Populate smcleod-data volume
+    shell: docker run -it -u 0 -w / --rm --volumes-from smcleod-data -v /home/smcleod/smcleod-data.tar.bz2:/smcleod-data.tar.bz2 smcleod/base tar jxvf /smcleod-data.tar.bz2
 #    register: ps
 #  - debug: var=ps.stdout_lines
