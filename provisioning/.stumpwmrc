@@ -1,0 +1,160 @@
+;; -*-lisp-*-
+;;
+;; Here is a sample .stumpwmrc file
+(load-module "cpu")
+(load-module "net")
+
+(in-package :stumpwm)
+
+(run-shell-command "/usr/bin/xrandr --auto --output VBOX0 --left-of VBOX1" t)
+(run-shell-command "/usr/bin/xhost +" t)
+
+;; change the prefix key to something else
+(set-prefix-key (kbd "C-t"))
+
+;;Set the default shell
+;;(setf *shell-program* "/bin/zsh5")
+(setf (getenv "TZ") "America/New_York")
+
+;; prompt the user for an interactive command. The first arg is an
+;; optional initial contents.
+(defcommand colon1 (&optional (initial "")) (:rest)
+  (let ((cmd (read-one-line (current-screen) ": " :initial-input initial)))
+    (when cmd
+      (eval-command cmd t))))
+
+(defcommand rxvt-tmux () ()
+  "Start rxvt with tmux"
+  (let ((cmd "exec rxvt -e zsh -c 'tmux -q has-session && exec tmux attach-session -d || exec tmux new-session -n$USER -s$USER@$HOSTNAME'"))))
+
+(defcommand gnome-terminal () ()
+  "run gnome-terminal"
+  (run-or-raise "gnome-terminal --hide-menubar -e tmux" '(:instance "gnome-terminal")))
+
+(defcommand pidgin () ()
+  "run pidgin"
+  (run-or-raise "pidgin" '(:instance "pidgin")))
+
+(defcommand chromium () ()
+  "run chromium"
+  (run-or-raise "google-chrome-stable --disable-web-security" '(:class "Google-chrome-stable")))
+
+(defcommand chrome () ()
+  "run chrome"
+  (run-or-raise "docker run -u 0 -it --rm --volumes-from smcleod-data --privileged --device=/dev/snd/controlC0:/dev/snd/controlC0 --device=/dev/snd/pcmC0D0c:/dev/snd/pcmC0D0c --device=/dev/snd/pcmC0D0p:/dev/snd/pcmC0D0p --device=/dev/snd/timer:/dev/snd/timer -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix smcleod/chrome:latest google-chrome --user-data-dir" '(:class "Google-chrome")))
+
+(defcommand chromium-proxy () ()
+  "run chromium with proxy"
+  (run-or-raise "google-chrome-stable --disable-web-security --proxy-server='socks5://localhost:4040'" '(:class "Google-chrome-stable")))
+
+(defcommand eclipse () ()
+  "Start eclipse"
+  (run-or-raise "killall eclipse; /usr/bin/zsh -i -c ~/eclipse/eclipse" '(:class "Eclipse")))
+
+(defcommand emacs () ()
+  "Start emacs"
+  ;;(run-or-raise "/usr/bin/zsh -l -i -c emacs" '(:class "Emacs")))
+  (run-or-raise "docker run -u 0 -it --rm --volumes-from smcleod-data -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix smcleod/emacs:latest emacs" '(:class "Emacs")))
+
+(defcommand fbreader () ()
+  "Start fbreader"
+  (run-or-raise "FBReader" '(:class "FBReader")))
+
+(define-key *root-map* (kbd "c") "gnome-terminal")
+(define-key *root-map* (kbd "b") "chrome")
+(define-key *root-map* (kbd "B") "chromium-proxy")
+(define-key *root-map* (kbd "F") "fbreader")
+(define-key *root-map* (kbd "e") "emacs")
+(define-key *root-map* (kbd "L") "pidgin")
+(define-key *root-map* (kbd "DEL") "repack-window-numbers")
+(define-key *root-map* (kbd "I") "show-window-properties")
+
+(toggle-mode-line (current-screen) (current-head))
+
+
+;; Show time, cpu usage and network traffic in the modeline
+(setf *screen-mode-line-format*
+      (list '(:eval (run-shell-command "date '+%r, %F %a'|tr -d [:cntrl:]" t)) " | %t | %c | %l | [^B%n^b] %W"))
+
+(setf *mouse-focus-policy* :sloppy) ;; :click, :ignore, :sloppy
+
+(run-commands "gnewbg Web" "gnewbg Media")
+
+;; Clear rules
+(clear-window-placement-rules)
+
+(define-frame-preference "Default"
+  ;; frame raise lock (lock AND raise == jumpto)
+  (0 t   t :title "emacs")
+  (0 t   t :class "XTerm"))
+
+(define-frame-preference "Web"
+  ;; frame raise lock (lock AND raise == jumpto)
+  (0 t   t :instance "chromium-browser"))
+
+(define-frame-preference "Media"
+  ;; frame raise lock (lock AND raise == jumpto)
+  (0 t   t :instance "aumix")
+  (0 t   t :class "MPlayer")
+  (0 t   t :class "Avidemux"))
+
+;; terminal
+;; Read some doc
+;; (define-key *root-map* (kbd "d") "exec gv")
+;; Browse somewhere
+;; (define-key *root-map* (kbd "b") "colon1 exec chromium-browser http://www.")
+;; Ssh somewhere
+;; (define-key *root-map* (kbd "C-s") "colon1 exec xterm -e ssh ")
+;; Lock screen
+;; (define-key *root-map* (kbd "C-l") "exec xlock")
+
+;; Web jump (works for Google and Imdb)
+;;(defmacro make-web-jump (name prefix)
+;;  `(defcommand ,name (search) ((:rest ,(concatenate 'string name " search: ")))
+;;    (substitute #\+ #\Space search)
+;;    (run-shell-command (concatenate 'string ,prefix search))))
+
+;;(make-web-jump "google" "firefox http://www.google.fr/search?q=")
+;;(make-web-jump "imdb" "firefox http://www.imdb.com/find?q=")
+
+;; C-t M-s is a terrble binding, but you get the idea.
+;;(define-key *root-map* (kbd "M-s") "google")
+;;(define-key *root-map* (kbd "i") "imdb")
+
+;; Message window font
+;;(set-font "-xos4-terminus-medium-r-normal--14-140-72-72-c-80-iso8859-15")
+
+;;; Define window placement policy...
+
+;; Clear rules
+;;(clear-window-placement-rules)
+
+;; Last rule to match takes precedence!
+;; TIP: if the argument to :title or :role begins with an ellipsis, a substring
+;; match is performed.
+;; TIP: if the :create flag is set then a missing group will be created and
+;; restored from *data-dir*/create file.
+;; TIP: if the :restore flag is set then group dump is restored even for an
+;; existing group using *data-dir*/restore file.
+;;(define-frame-preference "Default"
+  ;; frame raise lock (lock AND raise == jumpto)
+;;  (0 t nil :class "Konqueror" :role "...konqueror-mainwindow")
+;;  (1 t nil :class "XTerm"))
+
+;;(define-frame-preference "Ardour"
+;;  (0 t   t   :instance "ardour_editor" :type :normal)
+;;  (0 t   t   :title "Ardour - Session Control")
+;;  (0 nil nil :class "XTerm")
+;;  (1 t   nil :type :normal)
+;;  (1 t   t   :instance "ardour_mixer")
+;;  (2 t   t   :instance "jvmetro")
+;;  (1 t   t   :instance "qjackctl")
+;;  (3 t   t   :instance "qjackctl" :role "qjackctlMainForm"))
+
+;;(define-frame-preference "Shareland"
+;;  (0 t   nil :class "XTerm")
+;;  (1 nil t   :class "aMule"))
+
+;;(define-frame-preference "Emacs"
+;;  (1 t t :restore "emacs-editing-dump" :title "...xdvi")
+;;  (0 t t :create "emacs-dump" :class "Emacs"))

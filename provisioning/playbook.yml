@@ -72,11 +72,23 @@
     shell: creates=/home/smcleod/.stumpwm.d/modules chdir=/home/smcleod/stumpwm autoconf && ./configure && make && make install-modules
     sudo_user: smcleod
 
+  - name: Copy .stumpwmrc
+    copy: src=.stumpwmrc dest=/home/smcleod/.stumpwmrc
+
   - name: Install stumpwm
     shell: creates=/usr/local/bin/stumpwm chdir=/home/smcleod/stumpwm make install
 
   - name: Set stumpwm to be the default window manager
     shell: update-alternatives --install /usr/bin/x-window-manager x-window-manager /usr/local/bin/stumpwm 100
+
+  - name: Download docker-smcleod-base
+    git: repo=https://github.com/halcyon/docker-smcleod-base.git
+         dest=/home/smcleod/docker-smcleod-base
+    sudo_user: smcleod
+
+  - name: Build docker-smcleod-base
+    shell: chdir=/home/smcleod/docker-smcleod-base docker build -t smcleod/base .
+    sudo_user: smcleod
 
 #    register: ps
 #  - debug: var=ps.stdout_lines
