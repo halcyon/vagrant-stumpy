@@ -57,14 +57,28 @@
   - name: install sbcl binary
     shell: creates=/usr/local/bin/sbcl cd /tmp/sbcl-1.2.5-x86-64-linux && sh /tmp/sbcl-1.2.5-x86-64-linux/install.sh
   - name: Create user smcleod
-    user: name=smcleod shell=/usr/bin/zsh groups=docker,audio password="$6$lSIY4ZaVoDe$FGOOwpUzd7qkjPVJ9Muk1xoI19DhU34FB9GYtDpu.mN2.iQe4lYHN6V8B9bsH37ZIIn2qnrNIwabC85YiasIw0"
+    user: name=smcleod shell=/usr/bin/zsh groups=docker,sudo,audio password="$6$lSIY4ZaVoDe$FGOOwpUzd7qkjPVJ9Muk1xoI19DhU34FB9GYtDpu.mN2.iQe4lYHN6V8B9bsH37ZIIn2qnrNIwabC85YiasIw0"
 
   - name: Download gnome-terminal color scheme
     git: repo=https://github.com/Anthony25/gnome-terminal-colors-solarized.git
+         dest=/home/smcleod/gnome-terminal-colors-solarized update=no
+    sudo_user: smcleod
+  - name: Install gnome-terminal color scheme
+    shell: chdir=/home/smcleod/gnome-terminal-colors-solarized ./install.sh -s dark -p Default
     sudo_user: smcleod
 
-  - name: Install gnome-terminal color scheme
-    shell: chdir=/home/smcleod/gnome-terminal-colors-solarized ./install.sh -s light -p Default
+
+  - name: Install oh-my-zsh
+    shell: curl -L http://install.ohmyz.sh | SHELL=/usr/bin/zsh zsh
+    sudo_user: smcleod
+  - name: Copy .zshrc
+    copy: src=.zshrc dest=/home/smcleod/.zshrc
+    sudo_user: smcleod
+  - name: Copy halcyon.zsh-theme
+    copy: src=halcyon.zsh-theme dest=/home/smcleod/.oh-my-zsh/custom/halcyon.zsh-theme
+    sudo_user: smcleod
+  - name: Copy .gitconfig
+    copy: src=.gitconfig dest=/home/smcleod/.gitconfig
     sudo_user: smcleod
 
   - name: Download quicklisp dependency manager
@@ -122,14 +136,6 @@
     shell: chdir=/home/smcleod/docker-smcleod-emacs docker build -t smcleod/emacs .
     sudo_user: smcleod
 
-#  - name: Download docker-smcleod-gnome-terminal
-#    git: repo=https://github.com/halcyon/docker-smcleod-gnome-terminal.git
-#         dest=/home/smcleod/docker-smcleod-gnome-terminal update=no
-#    sudo_user: smcleod
-#  - name: Build docker-smcleod-gnome-terminal
-#    shell: chdir=/home/smcleod/docker-smcleod-gnome-terminal docker build -t smcleod/gnome-terminal .
-#    sudo_user: smcleod
-
   - name: Download docker-smcleod-chrome
     git: repo=https://github.com/halcyon/docker-smcleod-chrome.git
          dest=/home/smcleod/docker-smcleod-chrome update=no
@@ -141,10 +147,16 @@
   - name: Copy smcleod-data
     copy: src=smcleod-data.tar.bz2 dest=/home/smcleod/smcleod-data.tar.bz2
 
+#  - name: Download jq
+#    get_url: url=http://stedolan.github.io/jq/download/linux64/jq dest=/usr/local/bin
+#  - name: Set jq executable
+#    file: path=/usr/local/bin/jq mode=755
+
   - name: Create volume smcleod-data
     shell: docker ps -a | grep smcleod-data || docker run -v /root --name smcleod-data busybox true
 
   - name: Populate smcleod-data volume
     shell: docker run -it -u 0 -w / --rm --volumes-from smcleod-data -v /home/smcleod/smcleod-data.tar.bz2:/smcleod-data.tar.bz2 smcleod/base tar jxvf /smcleod-data.tar.bz2
+
 #    register: ps
 #  - debug: var=ps.stdout_lines
